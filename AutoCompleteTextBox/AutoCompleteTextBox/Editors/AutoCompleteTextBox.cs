@@ -35,6 +35,7 @@ namespace AutoCompleteTextBox.Editors
         public static readonly DependencyProperty ItemTemplateSelectorProperty = DependencyProperty.Register("ItemTemplateSelector", typeof(DataTemplateSelector), typeof(AutoCompleteTextBox));
         public static readonly DependencyProperty LoadingContentProperty = DependencyProperty.Register("LoadingContent", typeof(object), typeof(AutoCompleteTextBox), new FrameworkPropertyMetadata(null));
         public static readonly DependencyProperty ProviderProperty = DependencyProperty.Register("Provider", typeof(ISuggestionProvider), typeof(AutoCompleteTextBox), new FrameworkPropertyMetadata(null));
+        public static readonly DependencyProperty AsyncProviderProperty = DependencyProperty.Register("AsyncProvider", typeof(ISuggestionProviderAsync), typeof(AutoCompleteTextBox), new FrameworkPropertyMetadata(null));
         public static readonly DependencyProperty SelectedItemProperty = DependencyProperty.Register("SelectedItem", typeof(object), typeof(AutoCompleteTextBox), new FrameworkPropertyMetadata(null, OnSelectedItemChanged));
         public static readonly DependencyProperty TextProperty = DependencyProperty.Register("Text", typeof(string), typeof(AutoCompleteTextBox), new FrameworkPropertyMetadata(string.Empty));
         public static readonly DependencyProperty MaxLengthProperty = DependencyProperty.Register("MaxLength", typeof(int), typeof(AutoCompleteTextBox), new FrameworkPropertyMetadata(0));
@@ -171,11 +172,19 @@ namespace AutoCompleteTextBox.Editors
 
         public Popup Popup { get; set; }
 
+        [Obsolete("Use the AsyncProvider property instead")]
         public ISuggestionProvider Provider
         {
             get => (ISuggestionProvider)GetValue(ProviderProperty);
 
             set => SetValue(ProviderProperty, value);
+        }
+
+        public ISuggestionProviderAsync AsyncProvider
+        {
+            get => (ISuggestionProviderAsync)GetValue(AsyncProviderProperty);
+
+            set => SetValue(AsyncProviderProperty, value);
         }
 
         public object SelectedItem
@@ -351,7 +360,7 @@ namespace AutoCompleteTextBox.Editors
         {
             FetchTimer.IsEnabled = false;
             FetchTimer.Stop();
-            if (Provider != null && ItemsSelector != null)
+            if ((AsyncProvider != null || Provider != null) && ItemsSelector != null)
             {
                 Filter = Editor.Text;
                 if (_suggestionsAdapter == null)
@@ -441,18 +450,27 @@ namespace AutoCompleteTextBox.Editors
 
             #region "Methods"
 
-            public void GetSuggestions(string searchText)
+            public async void GetSuggestions(string searchText)
             {
                 _filter = searchText;
                 _actb.IsLoading = true;
                 _actb.IsDropDownOpen = true;
                 _actb.ItemsSelector.ItemsSource = null;
-                ParameterizedThreadStart thInfo = GetSuggestionsAsync;
-                Thread th = new Thread(thInfo);
-                th.Start(new object[] {
-                searchText,
-                _actb.Provider
-            });
+
+                if (_actb.AsyncProvider is ISuggestionProviderAsync asyncProvider)
+                {
+                    var list = await asyncProvider.GetSuggestionsAsync(searchText);
+                    DisplaySuggestions(list, searchText);
+                }
+                else if (_actb.Provider is ISuggestionProvider)
+                {
+                    ParameterizedThreadStart thInfo = GetSuggestionsWorker;
+                    Thread th = new Thread(thInfo);
+                    th.Start(new object[] {
+                        searchText,
+                        _actb.Provider
+                    });
+                }
             }
 
             private void DisplaySuggestions(IEnumerable suggestions, string filter)
@@ -470,11 +488,12 @@ namespace AutoCompleteTextBox.Editors
 
             }
 
-            private void GetSuggestionsAsync(object param)
+            private void GetSuggestionsWorker(object param)
             {
                 if (param is object[] args)
                 {
                     string searchText = Convert.ToString(args[0]);
+
                     if (args[1] is ISuggestionProvider provider)
                     {
                         IEnumerable list = provider.GetSuggestions(searchText);

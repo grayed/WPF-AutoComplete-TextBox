@@ -15,7 +15,7 @@ namespace AutoCompleteTextBox.Demo.Model
     /// <returns></returns>
     public static class StateFactory
     {
-        public static IList<State> CreateStateList()
+        public static IList<State> CreateStateList(bool large = false)
         {
             List<State> states = new List<State>
             {
@@ -71,7 +71,18 @@ namespace AutoCompleteTextBox.Demo.Model
                 new State {Abbreviations = "WY", Name = "Wyoming"}
             };
 
-            return states.ToList();
+            if (!large)
+                return states;
+
+            int statesCount = states.Count;
+            for (int i = 2; i <= 50; i++)
+            {
+                for (int j = 0; j < statesCount; j++)
+                {
+                    states.Add(new State() { Abbreviations = $"{states[j].Abbreviations}{i}", Name = $"{states[j].Name}-{i}" });
+                }
+            }
+            return states;
         }
     }
 }

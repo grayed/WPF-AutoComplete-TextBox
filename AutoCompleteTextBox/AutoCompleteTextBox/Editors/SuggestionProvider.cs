@@ -1,9 +1,10 @@
 ﻿using System;
 using System.Collections;
+using System.Threading.Tasks;
 
 namespace AutoCompleteTextBox.Editors
 {
-    public class SuggestionProvider : ISuggestionProvider
+    public class SuggestionProvider : ISuggestionProvider, ISuggestionProviderAsync
     {
 
 
@@ -27,6 +28,11 @@ namespace AutoCompleteTextBox.Editors
         public IEnumerable GetSuggestions(string filter)
         {
             return _method(filter);
+        }
+
+        public async Task<IEnumerable> GetSuggestionsAsync(string filter)
+        {
+            return await Task<IEnumerable>.Run(() => _method(filter));
         }
 
         #endregion Public Methods
