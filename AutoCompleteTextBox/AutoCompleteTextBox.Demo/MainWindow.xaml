@@ -93,7 +93,7 @@
                                                  DisplayMember="Name"
                                                  Height="26"
                                                  Width="450"
-                                                 Provider="{StaticResource ResourceKey=StateSuggestionProvider}"
+                                                 AsyncProvider="{StaticResource ResourceKey=StateSuggestionProvider}"
                                                  ItemTemplate="{StaticResource ResourceKey=StateTemplate}">
                             <editors1:AutoCompleteTextBox.SelectedItem>
                                 <Binding Path="SelectedState" Mode="TwoWay" UpdateSourceTrigger="PropertyChanged" ValidatesOnDataErrors="True">
